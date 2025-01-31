@@ -1,13 +1,13 @@
 import streamlit as st
 from Controller import verificar_login
 
-# Configura a página
-st.set_page_config(page_title="MM Montagem", page_icon="img/favicon.png")
-
-# Oculta completamente a barra lateral e o botão de expandir
+# Ocultar a opção da página de login na sidebar
 st.markdown("""
     <style>
-        [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+        [data-testid="stSidebarNav"] ul li a[href*="app"] {
+            display: none !important;
+        }
+            [data-testid="stSidebarNav"] ul li a[href*="Painel"] {
             display: none !important;
         }
     </style>
@@ -42,19 +42,18 @@ if telefone.strip():
 senha = st.text_input("Digite sua senha", type="password", placeholder="********", key="senha_login")
 
 # Botão de login
-# Botão de login
 if st.button("Entrar"):
-    usuario = verificar_login(telefone, senha)
-
+    usuario = verificar_login(telefone_formatado, senha)
     if usuario:  # Se encontrou um usuário no banco
         # Salvando os dados do usuário na sessão
         st.session_state["usuario"] = {
             "id": usuario[0],
             "nome": usuario[1],
             "sobrenome": usuario[2],
-            "telefone": usuario[3]
+            "telefone": usuario[3],
+            "admin": usuario[4]
         }
-        st.switch_page("pages/home.py")  # Redireciona para a Home
+        st.switch_page("pages/Painel.py")  # Redireciona para a Painel
     else:
         st.error("Número de telefone ou senha inválidos.")
 

@@ -1,5 +1,4 @@
 import sqlite3
-import streamlit as st
 
 def conectar_bd():
     conn = sqlite3.connect("banco.db")  # Cria ou conecta ao banco de dados
@@ -15,6 +14,11 @@ def conectar_bd():
             senha TEXT NOT NULL
         )
     ''')
+    # Adicionar a coluna admin se não existir
+    cursor.execute("PRAGMA table_info(usuarios);")
+    columns = [column[1] for column in cursor.fetchall()]
+    if 'admin' not in columns:
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN admin INTEGER NOT NULL DEFAULT 0;")
     
     conn.commit()
     conn.close()
@@ -22,19 +26,19 @@ def conectar_bd():
 # Chame essa função ao iniciar a aplicação para garantir que o banco de dados exista
 conectar_bd()
 
-def cadastrar_usuario(nome, sobrenome, telefone, senha):
+def cadastrar_usuario(nome, sobrenome, telefone, senha, admin):
     conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
     
     try:
-        cursor.execute("INSERT INTO usuarios (nome, sobrenome, telefone, senha) VALUES (?, ?, ?, ?)", 
-            (nome, sobrenome, telefone, senha))
+        cursor.execute("INSERT INTO usuarios (nome, sobrenome, telefone, senha, admin) VALUES (?, ?, ?, ?, ?)", 
+                       (nome, sobrenome, telefone, senha, int(admin)))
         conn.commit()
         return True  # Sucesso
     except sqlite3.IntegrityError:
         return False  # Erro: telefone já cadastrado
     finally:
-     conn.close()  
+        conn.close()  
 
 def verificar_login(telefone, senha):
     conn = sqlite3.connect("banco.db")
@@ -45,3 +49,4 @@ def verificar_login(telefone, senha):
 
     conn.close()
     return usuario  # Retorna os dados do usuário se encontrar
+
