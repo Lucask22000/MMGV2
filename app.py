@@ -1,6 +1,5 @@
 import streamlit as st
 from Controller import verificar_login
-from Controller import verificar_login
 
 # Configuração da página
 st.set_page_config(
