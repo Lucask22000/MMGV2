@@ -1,5 +1,8 @@
 import streamlit as st
+import pandas as pd
 from Controller import cadastrar_usuario
+
+st.title("Cadastro de Usuário")
 
 # Ocultar a opção da página de login na sidebar
 st.markdown("""
@@ -9,8 +12,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-st.title("Cadastro de Usuário")
 
 # Entrada de dados
 nome = st.text_input("Nome")

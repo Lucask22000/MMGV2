@@ -1,91 +1,135 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import date, datetime, timedelta
-import time
-from st_aggrid import AgGrid, GridOptionsBuilder
-import sqlite3
+import calendar
+from datetime import datetime
+from Controller import carregar_agendamentos
 
-# Ocultar a opção da página de login na sidebar
+# Função para criar o calendário
+def criar_calendario(agendamentos_df, ano, mes):
+    # Converte a coluna DATA para datetime
+    agendamentos_df['DATA'] = pd.to_datetime(agendamentos_df['DATA'], format='%Y-%m-%d', errors='coerce')
+    
+    # Remove linhas com valores inválidos na coluna DATA
+    agendamentos_df = agendamentos_df.dropna(subset=['DATA'])
+
+    # Filtra os agendamentos para o mês e ano especificados
+    agendamentos_mes = agendamentos_df[
+        (agendamentos_df['DATA'].dt.year == ano) & 
+        (agendamentos_df['DATA'].dt.month == mes)
+    ]
+
+    # Agrupa os agendamentos por data
+    agendamentos_por_dia = agendamentos_mes.groupby(agendamentos_mes['DATA'].dt.day).size()
+    nomes_por_dia = agendamentos_mes.groupby(agendamentos_mes['DATA'].dt.day)['NOME'].apply(list)
+
+    # Encontra o mínimo e máximo de agendamentos para o gradiente
+    min_agendamentos = agendamentos_por_dia.min() if not agendamentos_por_dia.empty else 0
+    max_agendamentos = agendamentos_por_dia.max() if not agendamentos_por_dia.empty else 1
+
+    # Cria o calendário
+    cal = calendar.HTMLCalendar()
+    html_cal = cal.formatmonth(ano, mes)
+
+    # Data atual
+    hoje = datetime.now().day if datetime.now().month == mes and datetime.now().year == ano else None
+
+    # Adiciona os agendamentos ao calendário
+    for dia, num_agendamentos in agendamentos_por_dia.items():
+        # Calcula a cor do gradiente
+        if max_agendamentos == min_agendamentos:
+            cor = "#d4f7d4"  # Cor padrão se todos os dias tiverem o mesmo número de agendamentos
+        else:
+            intensidade = (num_agendamentos - min_agendamentos) / (max_agendamentos - min_agendamentos)
+            cor = f"rgb({int(210 - intensidade * 150)}, {int(245 - intensidade * 150)}, {int(210 - intensidade * 150)})"
+
+        # Adiciona a borda vermelha para a data atual
+        borda = "2px solid red" if dia == hoje else "none"
+
+        # Adiciona os nomes dos usuários agendados
+        nomes = nomes_por_dia.get(dia, [])
+        nomes_html = "<br>".join([f"<div style='background: #f0f0f0; margin: 2px; padding: 2px; border-radius: 3px;'>{nome}</div>" for nome in nomes])
+
+        # Substitui a célula do dia no calendário
+        html_cal = html_cal.replace(
+            f'>{dia}<', 
+            f' style="background-color: {cor}; border: {borda};"><b>{dia}</b><br>{nomes_html}<'
+        )
+
+    return html_cal
+
+# Configuração da página
+st.set_page_config(page_title="Calendário de Agendamentos", page_icon="📅", layout="centered")
+
+# CSS personalizado para melhorar o visual
 st.markdown("""
     <style>
+        /* Ocultar a sidebar */
         [data-testid="stSidebarNav"] ul li a[href*="app"] {
             display: none !important;
         }
-            [data-testid="stSidebarNav"] ul li a[href*="Cadastro"] {
+        [data-testid="stSidebarNav"] ul li a[href*="Cadastro"] {
             display: none !important;
+        }
+        
+        /* Estilo do container do formulário */
+        .login-container {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+            margin: auto;
+        }
+
+        /* Estilo do calendário */
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .calendar th, .calendar td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .calendar th {
+            background-color: #f2f2f2;
+        }
+        .calendar td:hover {
+            background-color: #f5f5f5;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# Criando o Botão de Logout
-def logout():
-    st.session_state.clear()  # Limpa a sessão
-    st.rerun()  # Atualiza a página
-
-st.sidebar.button("❌ Encerrar Sessão", on_click=logout)
-
-# Verifica se o usuário está logado
-if "usuario" not in st.session_state:
-    for i in range(10, 0, -1):
-        st.warning(f"Encerrando sessão em {i} segundos... ⏳")
-        time.sleep(1)
-        st.switch_page("app.py")  # Redireciona para a tela de login
-
-# Verifica se o usuário está logado
-if "usuario" in st.session_state:
-    usuario = st.session_state["usuario"]
-    admin_badge = "👑 Sua conta é adiministradora do sistema!" if usuario.get("admin", False) else ""
-    st.write(admin_badge)
-    st.subheader(f"Bem-vindo, {usuario['nome']} {usuario['sobrenome']}!")
+# Barra lateral para filtros e logout
+with st.sidebar:
+    # Foto do usuário
+    st.image("img/user_photo.png", width=100, use_column_width=True)  # Substitua pelo caminho da foto do usuário
     
-    is_admin = usuario.get("admin", False)  # Define se o usuário é admin
-else:
-    st.warning("Você não está logado! Retorne à página de login.")
-    st.stop()  # Interrompe a execução do código se o usuário não estiver logado
+    # Filtros
+    st.title("Filtros")
+    filtro_nome = st.text_input("Filtrar por nome:")
+    filtro_telefone = st.text_input("Filtrar por telefone:")
+    filtro_data = st.date_input("Filtrar por data:", value=None)
+    
+    # Botão de logout
+    st.markdown("---")
+    if st.button("❌ Sair"):
+        st.session_state.clear()
+        st.rerun()
 
-# Configuração da página de agendamento
-st.title("📅 Agendamento Diário")
-
-# Função para carregar agendamentos do banco de dados
-def carregar_agendamentos():
-    conn = sqlite3.connect("banco.db")
-    query = "SELECT * FROM nova_agenda"
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df
+# Título da página
+st.title("📅 Calendário de Agendamentos")
 
 # Carregar os dados dos agendamentos
-agendamentos = carregar_agendamentos()
+agendamentos_df = carregar_agendamentos()
 
-# Configurar a tabela com colunas autoajustáveis
-gb = GridOptionsBuilder.from_dataframe(agendamentos)
-# Aplicar auto-ajuste de colunas
-gb.configure_default_column(resizable=True, wrapText=True, autoHeight=True)
-gb.configure_grid_options(domLayout='autoHeight', autoSizeColumns=True)
-gb.configure_pagination(paginationAutoPageSize=True)  # Paginação automática
-gb.configure_side_bar()  # Barra lateral com filtros
-gb.configure_selection("multiple", use_checkbox=True)  # Seleção com checkbox
+# Selecionar o ano e o mês
+ano = st.selectbox("Selecione o ano:", range(2023, 2030))
+mes = st.selectbox("Selecione o mês:", range(1, 13), format_func=lambda x: calendar.month_name[x])
 
-# Construir opções da grade
-grid_options = gb.build()
+# Gerar o calendário
+html_cal = criar_calendario(agendamentos_df, ano, mes)
 
-# Exibir tabela interativa
-grid_response = AgGrid(
-    agendamentos,
-    gridOptions=grid_options,
-    height=500,
-    fit_columns_on_grid_load=True,  # Agora as colunas ajustam automaticamente
-    enable_enterprise_modules=True
-)
-
-# Exibir seleção de linhas
-selecionados = grid_response["selected_rows"]
-if selecionados:
-    st.write("🔍 **Agendamentos Selecionados:**")
-    st.dataframe(pd.DataFrame(selecionados))
-
-# Para rodar: streamlit run seu_arquivo.py
-
-
-
+# Exibir o calendário
+st.markdown(html_cal, unsafe_allow_html=True)
