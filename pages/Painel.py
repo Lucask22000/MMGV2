@@ -37,22 +37,22 @@ def criar_calendario(agendamentos_df, ano, mes):
     for dia, num_agendamentos in agendamentos_por_dia.items():
         # Calcula a cor do gradiente
         if max_agendamentos == min_agendamentos:
-            cor = "#d4f7d4"  # Cor padrão se todos os dias tiverem o mesmo número de agendamentos
+            cor = "#e3f2fd"  # Cor padrão se todos os dias tiverem o mesmo número de agendamentos
         else:
             intensidade = (num_agendamentos - min_agendamentos) / (max_agendamentos - min_agendamentos)
-            cor = f"rgb({int(210 - intensidade * 150)}, {int(245 - intensidade * 150)}, {int(210 - intensidade * 150)})"
+            cor = f"rgba(33, 150, 243, {intensidade * 0.7 + 0.3})"  # Gradiente azul
 
-        # Adiciona a borda vermelha para a data atual
-        borda = "2px solid red" if dia == hoje else "none"
+        # Adiciona a borda para a data atual
+        borda = "2px solid #ff5252" if dia == hoje else "none"
 
         # Adiciona os nomes dos usuários agendados
         nomes = nomes_por_dia.get(dia, [])
-        nomes_html = "<br>".join([f"<div style='background: #f0f0f0; margin: 2px; padding: 2px; border-radius: 3px;'>{nome}</div>" for nome in nomes])
+        nomes_html = "<br>".join([f"<div style='background: #ffffff; margin: 2px; padding: 2px; border-radius: 3px; color: #333; font-size: 12px;'>{nome}</div>" for nome in nomes])
 
         # Substitui a célula do dia no calendário
         html_cal = html_cal.replace(
             f'>{dia}<', 
-            f' style="background-color: {cor}; border: {borda};"><b>{dia}</b><br>{nomes_html}<'
+            f' style="background-color: {cor}; border: {borda}; border-radius: 8px; padding: 10px; color: #333; font-weight: bold;"><b>{dia}</b><br>{nomes_html}<'
         )
 
     return html_cal
@@ -60,43 +60,81 @@ def criar_calendario(agendamentos_df, ano, mes):
 # Configuração da página
 st.set_page_config(page_title="Calendário de Agendamentos", page_icon="📅", layout="centered")
 
-# CSS personalizado para melhorar o visual
+# CSS personalizado para um visual moderno
 st.markdown("""
     <style>
-        /* Ocultar a sidebar */
-        [data-testid="stSidebarNav"] ul li a[href*="app"] {
-            display: none !important;
-        }
-        [data-testid="stSidebarNav"] ul li a[href*="Cadastro"] {
-            display: none !important;
-        }
-        
-        /* Estilo do container do formulário */
-        .login-container {
-            background-color: #ffffff;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
-            width: 90%;
-            margin: auto;
+        /* Estilo geral */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
         }
 
-        /* Estilo do calendário */
         .calendar {
-            width: 100%;
-            border-collapse: collapse;
+        width: 100%; /* Ocupa a mesma largura dos inputs */
+        border-collapse: separate;
+        border-spacing: 8px;
+    }
+
+    /* Aumentar a espessura das bordas */
+    .calendar th, .calendar td {
+        border: 2px solid #ddd; /* Bordas mais grossas */
+        padding: 12px;
+        text-align: center;
+        border-radius: 8px;
+    }
+
+    /* Estilo para o cabeçalho do calendário */
+    .calendar th {
+        background-color: #2196f3;
+        color: white;
+        font-size: 14px;
+        border: 2px solid #2196f3; /* Bordas mais grossas */
+    }
+
+    /* Efeito de hover nas células */
+    .calendar td:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+        /* Estilo para a imagem redonda */
+        .profile-img {
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            margin-bottom: 16px;
+            border: 2px solid #2196f3;
         }
-        .calendar th, .calendar td {
+
+        /* Estilo da barra lateral */
+        .sidebar .sidebar-content {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Estilo dos botões */
+        .stButton button {
+            background-color: #2196f3;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            transition: background-color 0.2s;
+        }
+        .stButton button:hover {
+            background-color: #1976d2;
+        }
+
+        /* Estilo dos inputs */
+        .stTextInput input, .stDateInput input {
+            border-radius: 8px;
             border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }
-        .calendar th {
-            background-color: #f2f2f2;
-        }
-        .calendar td:hover {
-            background-color: #f5f5f5;
+            padding: 10px;
+            font-size: 14px;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -104,8 +142,9 @@ st.markdown("""
 # Barra lateral para filtros e logout
 with st.sidebar:
     # Foto do usuário
-    st.image("img/user_photo.png", width=100, use_column_width=True)  # Substitua pelo caminho da foto do usuário
-    
+
+    st.image("img/user_photo.png", width=100, use_container_width=True)
+
     # Filtros
     st.title("Filtros")
     filtro_nome = st.text_input("Filtrar por nome:")
